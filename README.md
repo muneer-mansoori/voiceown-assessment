@@ -13,7 +13,7 @@ A production-ready DevSecOps implementation showcasing secure deployment of a No
 ## 📁 Project Structure
 
 ```
-├── app/                    # Node.js application
+├── app/                    # Node.js  application
 │   ├── src/server.js      # Express server implementation
 │   ├── Dockerfile         # Multi-stage container build
 │   └── package.json       # Dependencies and scripts
