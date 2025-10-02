@@ -1,0 +1,35 @@
+# Example Gatekeeper constraints (assumes Gatekeeper installed)
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPAllowPrivilegeEscalationContainer
+metadata:
+  name: disallow-privilege-escalation
+spec:
+  match:
+    kinds:
+    - apiGroups: [""]
+      kinds: ["Pod"]
+    namespaces: ["secure-app"]
+  parameters:
+    allowPrivilegeEscalation: false
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPRunAsNonRoot
+metadata:
+  name: require-non-root
+spec:
+  match:
+    kinds:
+    - apiGroups: [""]
+      kinds: ["Pod"]
+    namespaces: ["secure-app"]
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPReadOnlyRootFilesystem
+metadata:
+  name: readonly-rootfs
+spec:
+  match:
+    kinds:
+    - apiGroups: [""]
+      kinds: ["Pod"]
+    namespaces: ["secure-app"]

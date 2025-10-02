@@ -1,0 +1,73 @@
+stages:
+  - security-scan
+  - build
+  - deploy
+
+variables:
+  DOCKER_TLS_CERTDIR: ""
+  GCP_PROJECT_ID: "cloudside-academy" #"$GCP_PROJECT_ID"
+  GAR_LOCATION: "us-central1" #"$GAR_LOCATION"           # e. g. us-central1
+  GAR_REPO: "muneer"                   # e.g. apps
+  IMAGE_NAME: "secure-node-api"
+  GAR_HOST: "$GAR_LOCATION-docker.pkg.dev"
+  IMAGE: "$GAR_HOST/$GCP_PROJECT_ID/$GAR_REPO/$IMAGE_NAME:$CI_COMMIT_SHA"
+  GKE_CLUSTER: "revenclaw-private-gke"    # Use a public cluster for CI/CD access
+  GKE_LOCATION: "us-central1-a"        # Your cluster zone
+
+trivy_scan:
+  stage: security-scan
+  image:
+    name: aquasec/trivy:0.55.2
+    entrypoint: [""]
+  script:
+    - trivy fs --exit-code 1 --severity CRITICAL,HIGH --no-progress .
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+docker_build_push:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+  script:
+    - mkdir -p /kaniko/.docker
+    - echo "$GCP_SA_KEY" > /kaniko/gcp-key.json
+    - AUTH_TOKEN=$(printf '_json_key:%s' "$(cat /kaniko/gcp-key.json)" | base64 -w0 2>/dev/null || base64 2>/dev/null)
+    - echo "{\"auths\":{\"$GAR_HOST\":{\"auth\":\"$AUTH_TOKEN\"},\"gcr.io\":{\"auth\":\"$AUTH_TOKEN\"}}}" > /kaniko/.docker/config.json
+    - >
+      /kaniko/executor
+      --context $CI_PROJECT_DIR/app
+      --dockerfile $CI_PROJECT_DIR/app/Dockerfile
+      --destination $IMAGE
+      --snapshot-mode=redo
+      --use-new-run
+  needs: ["trivy_scan"]
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+deploy_k8s:
+  stage: deploy
+  image: google/cloud-sdk:467.0.0
+  script:
+    - echo "$GCP_SA_KEY" > /tmp/gcp-key.json
+    - gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+    - gcloud auth configure-docker $GAR_HOST --quiet
+    - gcloud config set project $GCP_PROJECT_ID
+    - gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_LOCATION" --project "$GCP_PROJECT_ID"
+    - kubectl apply -f k8s/base/namespace.yaml
+    - kubectl -n secure-app create secret generic mongo-credentials --from-literal=uri="$MONGODB_URI" --dry-run=client -o yaml | kubectl apply -f -
+    - sed -e "s|ghcr.io/example/secure-node-api:latest|$IMAGE|" k8s/base/api-deployment.yaml | kubectl apply -f -
+    - kubectl apply -f k8s/base/mongo-statefulset.yaml
+    - kubectl apply -f k8s/base/ingress.yaml
+    - kubectl apply -f k8s/hardening/networkpolicies.yaml
+    - kubectl apply -f k8s/hardening/podsecurity.yaml
+    - kubectl apply -f k8s/hardening/constraint-templates.yaml || true
+    - sleep 10  # Wait for constraint templates to be  processed
+    - kubectl apply -f k8s/hardening/gatekeeper-constraints.yaml || true
+    - kubectl apply -f k8s/monitoring/prometheus.yaml
+    - kubectl apply -f k8s/monitoring/grafana.yaml
+  environment:
+    name: production
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  needs: ["docker_build_push"]

@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alerts
+  namespace: secure-app
+data:
+  alerts.yml: |
+    groups:
+    - name: api-alerts
+      rules:
+      - alert: APIDown
+        expr: up{job="metrics-proxy"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API is down"
+          description: "API has been down for more than 1 minute"
+      
+      - alert: APIUnhealthy
+        expr: api_health_status != 1
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "API health check failing"
+          description: "API health status is {{ $value }}"
+    
+
+    - name: prometheus-alerts
+      rules:
+      - alert: PrometheusDown
+        expr: up{job="prometheus"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus is down"
+          description: "Prometheus has been down for more than 1 minute"

@@ -1,0 +1,21 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-pdb
+  namespace: secure-app
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mongo-pdb
+  namespace: secure-app
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: mongo

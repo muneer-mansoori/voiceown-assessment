@@ -1,4 +1,5 @@
 # Secure Node.js + MongoDB on GKE
+![alt text](image.png)
 A production-ready DevSecOps implementation showcasing secure deployment of a Node.js application with MongoDB on Google Kubernetes Engine (GKE). Features include container security scanning, hardened Kubernetes manifests, network policies, and infrastructure as code.
 
 ## 🏗️ Architecture
@@ -13,7 +14,7 @@ A production-ready DevSecOps implementation showcasing secure deployment of a No
 ## 📁 Project Structure
 
 ```
-├── app/                    # Node.js  application
+├── app/                    # Node.js application
 │   ├── src/server.js      # Express server implementation
 │   ├── Dockerfile         # Multi-stage container build
 │   └── package.json       # Dependencies and scripts
